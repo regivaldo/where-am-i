@@ -6,28 +6,14 @@
   const applyIndicator = async () => {
     const currentUrl = window.location.href;
 
-    // Load environments from storage
-    const data = await chrome.storage.sync.get('environments');
-    const environments = data.environments || [];
+    const match = await chrome.runtime.sendMessage({
+      type: 'findMatchingEnv',
+      url: currentUrl
+    });
 
-    let match = null;
-
-    for (const env of environments) {
-      try {
-        if (env.urlPattern.startsWith('/') && env.urlPattern.endsWith('/')) {
-          const regex = new RegExp(env.urlPattern.slice(1, -1));
-          if (regex.test(currentUrl)) match = env;
-        } else {
-          if (currentUrl.includes(env.urlPattern)) match = env;
-        }
-      } catch (e) {
-        console.error("Where Am I: Invalid regex", env.urlPattern);
-      }
-      if (match) break;
-    }
+    removeExistingIndicators();
 
     if (match) {
-      removeExistingIndicators();
       applyVisualIndicator(match);
     }
   };

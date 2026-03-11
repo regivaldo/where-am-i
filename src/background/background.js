@@ -11,34 +11,70 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     }
 });
 
+// --- Centralized matching logic ---
+
+function matchUrl(url, env) {
+    try {
+        if (env.urlPattern.startsWith('/') && env.urlPattern.endsWith('/')) {
+            const regex = new RegExp(env.urlPattern.slice(1, -1));
+            return regex.test(url);
+        }
+        return url.includes(env.urlPattern);
+    } catch (e) {
+        console.error("Where Am I: Invalid regex", env.urlPattern);
+        return false;
+    }
+}
+
+async function matchCookie(url, env) {
+    if (!env.cookieName) return true;
+
+    try {
+        const cookie = await chrome.cookies.get({ url, name: env.cookieName });
+        if (!cookie) return false;
+        if (env.cookieValue) return cookie.value === env.cookieValue;
+        return true;
+    } catch (e) {
+        console.error("Where Am I: Error reading cookie", e);
+        return false;
+    }
+}
+
+async function findMatchingEnv(url) {
+    const data = await chrome.storage.sync.get('environments');
+    const environments = data.environments || [];
+
+    for (const env of environments) {
+        if (matchUrl(url, env) && await matchCookie(url, env)) {
+            return env;
+        }
+    }
+    return null;
+}
+
+// --- Badge update ---
+
 async function updateBadge(tabId, url) {
     if (!url) return;
 
-    // Default state
     chrome.action.setBadgeText({ text: "", tabId });
 
     if (url.startsWith('chrome://') || url.startsWith('edge://')) return;
 
-    const data = await chrome.storage.sync.get('environments');
-    const environments = data.environments || [];
-
-    let match = null;
-    for (const env of environments) {
-        try {
-            if (env.urlPattern.startsWith('/') && env.urlPattern.endsWith('/')) {
-                const regex = new RegExp(env.urlPattern.slice(1, -1));
-                if (regex.test(url)) match = env;
-            } else {
-                if (url.includes(env.urlPattern)) match = env;
-            }
-        } catch (e) {
-            console.error("Invalid regex in background", env.urlPattern);
-        }
-        if (match) break;
-    }
+    const match = await findMatchingEnv(url);
 
     if (match) {
-        // Set badge background color only (no text)
         chrome.action.setBadgeBackgroundColor({ color: match.color, tabId });
     }
 }
+
+// --- Message handler for content.js and popup.js ---
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'findMatchingEnv') {
+        findMatchingEnv(message.url).then(env => {
+            sendResponse(env);
+        });
+        return true; // keep channel open for async response
+    }
+});

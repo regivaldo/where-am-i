@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const typeInput = document.getElementById('indicationType');
     const colorInput = document.getElementById('envColor');
     const borderWidthInput = document.getElementById('borderWidth');
+    const cookieNameInput = document.getElementById('cookieName');
+    const cookieValueInput = document.getElementById('cookieValue');
     const tbody = document.getElementById('env-tbody');
     const pagination = document.getElementById('pagination');
     const emptyState = document.getElementById('empty-state');
@@ -91,6 +93,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             <input type="text" class="edit-input" id="edit-border" value="${env.borderWidth}" style="width: 60px;">
           </td>
           <td>
+            <input type="text" class="edit-input" id="edit-cookie-name" value="${env.cookieName || ''}" placeholder="Nome" style="width: 80px;">
+            <input type="text" class="edit-input" id="edit-cookie-value" value="${env.cookieValue || ''}" placeholder="Valor" style="width: 80px;">
+          </td>
+          <td>
             <div class="action-cell">
               <button class="action-btn save" data-action="save" title="Salvar">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -108,6 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td>${getTypeLabel(env.indicationType)}</td>
           <td><span class="color-bar" style="background-color: ${env.color}"></span></td>
           <td>${env.borderWidth}</td>
+          <td>${env.cookieName ? env.cookieName + (env.cookieValue ? '=' + env.cookieValue : '') : '—'}</td>
           <td>
             <div class="action-cell">
               <button class="action-btn edit" data-action="edit" title="Editar">
@@ -176,6 +183,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const newType = document.getElementById('edit-type').value;
                     const newColor = document.getElementById('edit-color').value;
                     const newBorder = document.getElementById('edit-border').value.trim();
+                    const newCookieName = document.getElementById('edit-cookie-name').value.trim();
+                    const newCookieValue = document.getElementById('edit-cookie-value').value.trim();
 
                     if (newUrl && newName) {
                         environments[index] = {
@@ -183,7 +192,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                             name: newName,
                             indicationType: newType,
                             color: newColor,
-                            borderWidth: newBorder || '5px'
+                            borderWidth: newBorder || '5px',
+                            cookieName: newCookieName,
+                            cookieValue: newCookieValue
                         };
                         await saveEnvs();
                         editingIndex = null;
@@ -214,7 +225,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             name: nameInput.value.trim(),
             indicationType: typeInput.value,
             color: colorInput.value,
-            borderWidth: borderWidthInput.value.trim() || '5px'
+            borderWidth: borderWidthInput.value.trim() || '5px',
+            cookieName: cookieNameInput.value.trim(),
+            cookieValue: cookieValueInput.value.trim()
         };
 
         if (!newEnv.urlPattern || !newEnv.name || !newEnv.indicationType) {

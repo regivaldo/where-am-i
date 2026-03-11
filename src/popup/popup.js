@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editBorderWidth = document.getElementById('edit-border-width');
     const editColor = document.getElementById('edit-color');
     const editColorBar = document.getElementById('edit-color-bar');
+    const editCookieName = document.getElementById('edit-cookie-name');
+    const editCookieValue = document.getElementById('edit-cookie-value');
     const cancelBtn = document.getElementById('cancel-btn');
     const saveBtn = document.getElementById('save-btn');
 
@@ -56,6 +58,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             editBorderWidth.value = currentMatch.borderWidth || '5px';
             editColor.value = currentMatch.color || '#b91c1c';
             editColorBar.style.backgroundColor = currentMatch.color || '#b91c1c';
+            editCookieName.value = currentMatch.cookieName || '';
+            editCookieValue.value = currentMatch.cookieValue || '';
         } else {
             editUrl.value = currentHostname;
             editName.value = '';
@@ -63,6 +67,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             editBorderWidth.value = '5px';
             editColor.value = '#b91c1c';
             editColorBar.style.backgroundColor = '#b91c1c';
+            editCookieName.value = '';
+            editCookieValue.value = '';
         }
     };
 
@@ -105,6 +111,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const indication = editIndication.value;
         const borderWidth = editBorderWidth.value.trim() || '5px';
         const color = editColor.value;
+        const cookieName = editCookieName.value.trim();
+        const cookieValue = editCookieValue.value.trim();
 
         if (!urlPattern || !name) {
             alert('Por favor, preencha URL e Nome do Ambiente');
@@ -124,7 +132,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             name,
             indicationType: indication,
             borderWidth,
-            color
+            color,
+            cookieName,
+            cookieValue
         };
 
         if (existingIndex >= 0) {
@@ -163,25 +173,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlObj = new URL(tab.url);
     currentHostname = urlObj.hostname;
 
-    // Load environments
-    const data = await chrome.storage.sync.get('environments');
-    const environments = data.environments || [];
-
-    let match = null;
-    // Simple check: match exact hostname or regex
-    for (const env of environments) {
-        try {
-            if (env.urlPattern.startsWith('/') && env.urlPattern.endsWith('/')) {
-                const regex = new RegExp(env.urlPattern.slice(1, -1));
-                if (regex.test(tab.url)) match = env;
-            } else {
-                if (tab.url.includes(env.urlPattern)) match = env;
-            }
-        } catch (e) {
-            console.error("Invalid regex", env.urlPattern);
-        }
-        if (match) break;
-    }
+    // Find matching environment via background (centralized matching with cookie support)
+    const match = await chrome.runtime.sendMessage({
+        type: 'findMatchingEnv',
+        url: tab.url
+    });
 
     currentMatch = match;
 
