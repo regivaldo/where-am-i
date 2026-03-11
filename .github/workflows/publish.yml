@@ -1,0 +1,63 @@
+name: Publish to Chrome Web Store
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zip
+        run: make zip
+
+      - name: Upload to Chrome Web Store
+        run: |
+          # 1. Get access token
+          ACCESS_TOKEN=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -d "client_id=${{ secrets.CHROME_CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.CHROME_CLIENT_SECRET }}" \
+            -d "refresh_token=${{ secrets.CHROME_REFRESH_TOKEN }}" \
+            -d "grant_type=refresh_token" | jq -r '.access_token')
+
+          if [ "$ACCESS_TOKEN" = "null" ] || [ -z "$ACCESS_TOKEN" ]; then
+            echo "::error::Failed to obtain access token"
+            exit 1
+          fi
+
+          # 2. Upload zip
+          UPLOAD_RESPONSE=$(curl -s -X PUT \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/${{ secrets.CHROME_EXTENSION_ID }}" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-goog-api-version: 2" \
+            -T where-am-i.zip)
+
+          UPLOAD_STATUS=$(echo "$UPLOAD_RESPONSE" | jq -r '.uploadState')
+          echo "Upload status: $UPLOAD_STATUS"
+
+          if [ "$UPLOAD_STATUS" != "SUCCESS" ]; then
+            echo "$UPLOAD_RESPONSE" | jq .
+            echo "::error::Upload failed"
+            exit 1
+          fi
+
+          # 3. Publish
+          PUBLISH_RESPONSE=$(curl -s -X POST \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/${{ secrets.CHROME_EXTENSION_ID }}/publish" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0")
+
+          PUBLISH_STATUS=$(echo "$PUBLISH_RESPONSE" | jq -r '.status[0]')
+          echo "Publish status: $PUBLISH_STATUS"
+
+          if [ "$PUBLISH_STATUS" != "OK" ]; then
+            echo "$PUBLISH_RESPONSE" | jq .
+            echo "::error::Publish failed"
+            exit 1
+          fi
+
+          echo "Extension published successfully!"
