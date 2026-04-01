@@ -21,10 +21,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editCookieValue = document.getElementById('edit-cookie-value');
     const cancelBtn = document.getElementById('cancel-btn');
     const saveBtn = document.getElementById('save-btn');
+    const extensionToggle = document.getElementById('extension-toggle');
 
     let currentMatch = null;
     let currentHostname = '';
     let currentTab = null;
+
+    // Toggle enabled/disabled state
+    const updateDisabledState = (enabled) => {
+        viewMode.classList.toggle('disabled', !enabled);
+        editMode.classList.toggle('disabled', !enabled);
+    };
+
+    const { extensionEnabled } = await chrome.storage.sync.get({ extensionEnabled: true });
+    extensionToggle.checked = extensionEnabled;
+    updateDisabledState(extensionEnabled);
+
+    extensionToggle.addEventListener('change', async () => {
+        const enabled = extensionToggle.checked;
+        await chrome.storage.sync.set({ extensionEnabled: enabled });
+        updateDisabledState(enabled);
+    });
 
     // Helper functions
     const formatIndicationType = (type) => {

@@ -4,14 +4,18 @@
 (async function () {
   // Check if we should apply indicators
   const applyIndicator = async () => {
+    const { extensionEnabled } = await chrome.storage.sync.get({ extensionEnabled: true });
+
+    removeExistingIndicators();
+
+    if (!extensionEnabled) return;
+
     const currentUrl = window.location.href;
 
     const match = await chrome.runtime.sendMessage({
       type: 'findMatchingEnv',
       url: currentUrl
     });
-
-    removeExistingIndicators();
 
     if (match) {
       applyVisualIndicator(match);
@@ -372,7 +376,7 @@
 
   // Listen for storage changes to update indicators in real-time
   chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'sync' && changes.environments) {
+    if (namespace === 'sync' && (changes.environments || changes.extensionEnabled)) {
       applyIndicator();
     }
   });

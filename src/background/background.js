@@ -61,12 +61,33 @@ async function updateBadge(tabId, url) {
 
     if (url.startsWith('chrome://') || url.startsWith('edge://')) return;
 
+    const { extensionEnabled } = await chrome.storage.sync.get({ extensionEnabled: true });
+    if (!extensionEnabled) return;
+
     const match = await findMatchingEnv(url);
 
     if (match) {
         chrome.action.setBadgeBackgroundColor({ color: match.color, tabId });
     }
 }
+
+// --- React to toggle changes ---
+
+chrome.storage.onChanged.addListener(async (changes, namespace) => {
+    if (namespace === 'sync' && changes.extensionEnabled) {
+        const enabled = changes.extensionEnabled.newValue;
+        const tabs = await chrome.tabs.query({});
+        for (const tab of tabs) {
+            if (tab.id) {
+                if (enabled && tab.url) {
+                    updateBadge(tab.id, tab.url);
+                } else {
+                    chrome.action.setBadgeText({ text: "", tabId: tab.id });
+                }
+            }
+        }
+    }
+});
 
 // --- Message handler for content.js and popup.js ---
 
