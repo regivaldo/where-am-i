@@ -43,7 +43,7 @@
 
   // Apply visual indicator based on type
   const applyVisualIndicator = (env) => {
-    const { indicationType, color, borderWidth, name } = env;
+    const { indicationType, color, borderWidth, name, urlPattern } = env;
     const width = borderWidth || '5px';
 
     switch (indicationType) {
@@ -54,7 +54,7 @@
         applyTopBorder(color, width, name);
         break;
       case 'balao':
-        applyBalloon(color, name);
+        applyBalloon(color, name, urlPattern);
         break;
       default:
         applyTopBorder(color, width, name);
@@ -269,7 +269,7 @@
   };
 
   // Floating balloon with environment name
-  const applyBalloon = (color, name) => {
+  const applyBalloon = (color, name, urlPattern) => {
     const style = document.createElement('style');
     style.id = 'where-am-i-styles';
     style.textContent = `
@@ -327,8 +327,19 @@
     balloon.title = 'Arraste para mover | Duplo clique para minimizar';
     document.body.appendChild(balloon);
 
-    // Make balloon draggable
-    makeDraggable(balloon);
+    // Restore saved position
+    const positionKey = 'balloonPos_' + urlPattern;
+    chrome.storage.local.get(positionKey, (data) => {
+      const pos = data[positionKey];
+      if (pos) {
+        balloon.style.left = pos.left + 'px';
+        balloon.style.top = pos.top + 'px';
+        balloon.style.right = 'auto';
+      }
+    });
+
+    // Make balloon draggable (saves position on drop)
+    makeDraggable(balloon, positionKey);
 
     // Double click to minimize
     balloon.addEventListener('dblclick', () => {
@@ -342,7 +353,7 @@
   };
 
   // Make element draggable
-  const makeDraggable = (element) => {
+  const makeDraggable = (element, positionKey) => {
     let isDragging = false;
     let offsetX, offsetY;
 
@@ -369,8 +380,19 @@
     });
 
     document.addEventListener('mouseup', () => {
+      if (!isDragging) return;
       isDragging = false;
       element.style.cursor = 'move';
+
+      // Save position
+      if (positionKey) {
+        chrome.storage.local.set({
+          [positionKey]: {
+            left: parseInt(element.style.left),
+            top: parseInt(element.style.top)
+          }
+        });
+      }
     });
   };
 
